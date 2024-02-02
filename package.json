@@ -1,0 +1,30 @@
+{
+    "name": "@stepanjakl/apostrophe-stripe-products",
+    "version": "3.0.0",
+    "description": "Stripe Products For Apostrophe 3",
+    "main": "index.js",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/stepanjakl/apostrophe-stripe-products.git"
+    },
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "author": "Štěpán Jákl",
+    "homepage": "https://github.com/stepanjakl/apostrophe-stripe-products#readme",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/stepanjakl/apostrophe-stripe-products/issues"
+    },
+    "keywords": [
+        "apostrophe",
+        "apostrophecms",
+        "stripe"
+    ],
+    "publishConfig": {
+        "access": "public"
+    },
+    "dependencies": {
+        "stripe": "^14.13.0"
+    }
+}
