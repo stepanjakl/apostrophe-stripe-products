@@ -1,5 +1,5 @@
 export default () => {
-    apos.bus.$on('synchronize-products', async () => {
+    apos.bus.$on('synchronize-stripe-products', async () => {
         console.log('-- -- Vue event - synchronize-products')
 
         /* await apos.notify('apostrophe:minSize', {
@@ -23,7 +23,18 @@ export default () => {
             })
         } catch (error) {
             console.error(error)
-        }
+        } /* finally {
+            console.log('-- -- Vue event - synchronize-products - finished')
+        } */
+
+       /*  apos.bus.$on('synchronize-stripe-products', async () => {
+        apos.bus.$emit('content-changed', {
+            doc: null,
+            action: 'synchronize-stripe-products'
+          }) */
+
+
+        /*   */
 
         /* try {
             await apos.http.post(`${this.moduleOptions.action}/${action}`, {

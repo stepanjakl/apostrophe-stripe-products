@@ -28,7 +28,7 @@ module.exports = {
                     // icon: 'dots-vertical-icon',
                     // type: 'outline'
                     eventOptions: {
-                        event: 'synchronize-products'
+                        event: 'synchronize-stripe-products'
                     }
                 },
                 /* test: {
