@@ -6,7 +6,7 @@ module.exports = {
         pluralLabel: 'Products',
         quickCreate: false,
         searchable: false,
-        // showCreate: false
+        showCreate: false
     },
     batchOperations: {
         remove: ['publish']
@@ -14,12 +14,6 @@ module.exports = {
     utilityOperations(self) {
         return {
             add: {
-                /*  button: {
-                     label: 'apostrophe:moreOperations',
-                     iconOnly: true,
-                     icon: 'dots-vertical-icon',
-                     type: 'outline'
-                 }, */
                 synchronizeProducts: {
                     label: 'stripeProducts:synchronizeProducts',
                     canEdit: true,
@@ -45,14 +39,158 @@ module.exports = {
                     }
                 } */
             },
-            // remove: ['new']
         }
+    },
+    columns: {
+        add: {
+            'stripeProductObject.name': {
+                label: 'Product name',
+                component: 'AposCellBasic'
+            },
+            'stripeProductObject.id': {
+                label: 'Product ID',
+                component: 'AposCellBasic'
+            },
+            'stripeProductObject.created': {
+                label: 'Created',
+                component: 'AposCellDate'
+            },
+            'stripeProductObject.updated': {
+                label: 'Updated',
+                component: 'AposCellDate'
+            },
+            /* 'amount_total': {
+                label: 'Amount',
+                component: 'AposCellBasic'
+            },
+            'currency': {
+                label: 'Currency',
+                component: 'AposCellBasic'
+            },
+            'line_items_quantity_total': {
+                label: 'Quantity',
+                component: 'AposCellBasic'
+            },
+            'checkoutSession.status': {
+                label: 'Status',
+                component: 'AposCellBasic'
+            },
+            'checkoutSession.payment_status': {
+                label: 'Payment status',
+                component: 'AposCellBasic'
+            } */
+        },
+        remove: ['title', 'lastPublishedAt', 'updatedAt'],
+        order: ['stripeProductObject.name', 'stripeProductObject.id', 'stripeProductObject.created', 'stripeProductObject.updated']
     },
     fields: {
         add: {
-
+            stripeProductObject: {
+                label: 'Stripe product object',
+                type: 'object',
+                fields: {
+                    add: {
+                        id: {
+                            type: 'readOnly',
+                            label: 'Product ID',
+                            copyToClipboard: true,
+                            openInNewTab: true,
+                            openInNewTabPrepend: `${process.env.STRIPE_DASHBOARD_BASE_URL}${process.env.STRIPE_TEST ? '/test' : ''}${process.env.STRIPE_TEST ? '/test' : ''}/products/`
+                        },
+                        name: {
+                            type: 'readOnly',
+                            label: 'Name',
+                            copyToClipboard: true
+                        },
+                        type: {
+                            type: 'readOnly',
+                            label: 'Type'
+                        },
+                        active: {
+                            type: 'readOnly',
+                            label: 'Active'
+                        },
+                        created: {
+                            type: 'readOnly',
+                            label: 'Created timestamp',
+                            copyToClipboard: true
+                        },
+                        updated: {
+                            type: 'readOnly',
+                            label: 'Updated timestamp',
+                            copyToClipboard: true
+                        }
+                    }
+                }
+            },
+            stripePriceObject: {
+                label: 'Stripe price object',
+                type: 'object',
+                fields: {
+                    add: {
+                        'id': {
+                            type: 'readOnly',
+                            label: 'Price ID',
+                            copyToClipboard: true,
+                            openInNewTab: true,
+                            openInNewTabPrepend: `${process.env.STRIPE_DASHBOARD_BASE_URL}${process.env.STRIPE_TEST ? '/test' : ''}/prices/`
+                        },
+                        unit_amount: {
+                            type: 'readOnly',
+                            label: 'Unit amount',
+                            copyToClipboard: true
+                        },
+                        currency: {
+                            type: 'readOnly',
+                            label: 'Currency'
+                        },
+                        type: {
+                            type: 'readOnly',
+                            label: 'Type'
+                        }
+                    }
+                }
+            }
+        },
+        remove: ['visibility'],
+        group: {
+            product: {
+                label: 'Product',
+                fields: [
+                    'stripeProductObject'
+                ]
+            },
+            price: {
+                label: 'Price',
+                fields: [
+                    'stripePriceObject'
+                ]
+            },
+            utility: {
+                fields: [
+                    'title',
+                    'slug',
+                ]
+            }
         }
     },
+    filters: {
+        remove: ['visibility']
+    },
+    init(self) {
+        self.addReadOnlyFieldType()
+    },
+    methods(self) {
+        return {
+            addReadOnlyFieldType() {
+                self.apos.schema.addFieldType({
+                    name: 'readOnly',
+                    convert: self.convertInput,
+                    vueComponent: 'InputReadOnly'
+                })
+            }
+        }
+    }
     /* init(self) {
         const groupName = 'stripe'
         const itemsToAdd = ['stripe-products/product']

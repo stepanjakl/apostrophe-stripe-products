@@ -2,6 +2,45 @@ const fs = require('fs')
 const path = require('path')
 const _ = require('lodash')
 
+/**
+ * Deep diff between two object-likes
+ * @param  {Object} fromObject the original object
+ * @param  {Object} toObject   the updated object
+ * @return {Object}            a new object which represents the difference
+ */
+function deepDiff(fromObject, toObject) {
+    const changes = {}
+    const buildPath = (path, obj, key) =>
+        _.isUndefined(path) ? key : `${path}.${key}`
+    const walk = (fromObject, toObject, path) => {
+        for (const key of _.keys(fromObject)) {
+            const currentPath = buildPath(path, fromObject, key)
+            if (!_.has(toObject, key)) {
+                changes[currentPath] = { from: _.get(fromObject, key) }
+            }
+        }
+        for (const [key, to] of _.entries(toObject)) {
+            const currentPath = buildPath(path, toObject, key)
+            if (!_.has(fromObject, key)) {
+                changes[currentPath] = { to }
+            } else {
+                const from = _.get(fromObject, key)
+                if (!_.isEqual(from, to)) {
+                    if (_.isObjectLike(to) && _.isObjectLike(from)) {
+                        walk(from, to, currentPath)
+                    } else {
+                        changes[currentPath] = { from, to }
+                    }
+                }
+            }
+        }
+    }
+    walk(fromObject, toObject)
+    return changes
+}
+
+_.mixin({ deepDiff })
+
 const Stripe = require('stripe')
 const stripe = Stripe(process.env.STRIPE_KEY)
 
@@ -76,50 +115,6 @@ module.exports = {
                         }
                       ) */
 
-                    /**
-                     * Deep diff between two object-likes
-                     * @param  {Object} fromObject the original object
-                     * @param  {Object} toObject   the updated object
-                     * @return {Object}            a new object which represents the difference
-                     */
-                    function deepDiff(fromObject, toObject) {
-                        const changes = {}
-
-                        const buildPath = (path, obj, key) =>
-                            _.isUndefined(path) ? key : `${path}.${key}`
-
-                        const walk = (fromObject, toObject, path) => {
-                            for (const key of _.keys(fromObject)) {
-                                const currentPath = buildPath(path, fromObject, key)
-                                if (!_.has(toObject, key)) {
-                                    changes[currentPath] = { from: _.get(fromObject, key) }
-                                }
-                            }
-
-                            for (const [key, to] of _.entries(toObject)) {
-                                const currentPath = buildPath(path, toObject, key)
-                                if (!_.has(fromObject, key)) {
-                                    changes[currentPath] = { to }
-                                } else {
-                                    const from = _.get(fromObject, key)
-                                    if (!_.isEqual(from, to)) {
-                                        if (_.isObjectLike(to) && _.isObjectLike(from)) {
-                                            walk(from, to, currentPath)
-                                        } else {
-                                            changes[currentPath] = { from, to }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        walk(fromObject, toObject)
-
-                        return changes
-                    }
-
-                    _.mixin({ deepDiff })
-
                     return self.apos.modules['@apostrophecms/job'].run(
                         req,
                         async (req, reporting) => {
@@ -134,34 +129,50 @@ module.exports = {
                                 // Make a request to fetch products
                                 const productList = await stripe.products.list({
                                     limit: 2,
-                                    starting_after: startingAfterId,
+                                    starting_after: startingAfterId
+                                    /* expand: ['data.default_price'] */
                                 })
 
                                 for (const product of productList?.data || []) {
-                                    const docToUpdate = await self.apos.doc.db.find({ 'productData.id': product.id }).next()
+                                    const docToUpdate = await self.apos.doc.db.find({ 'stripeProductObject.id': product.id }).next()
                                     console.log('-- -- -- -- -- -- -- -- -- -- -- -- -- -- --')
                                     /* console.log('-- -- product:', product)
-                                    console.log('-- -- docToUpdate:', docToUpdate?.productData) */
+                                    console.log('-- -- docToUpdate:', docToUpdate?.stripeProductObject) */
+
+                                    if (product.default_price) {
+                                        const price = await stripe.prices.retrieve(product.default_price)
+                                        // TODO convert cents
+                                    }
 
                                     if (docToUpdate) {
-                                        const difference = _.deepDiff(docToUpdate.productData, product)
 
-                                        console.log('-- -- difference:', difference)
+                                        const differenceProductObject = _.deepDiff(docToUpdate.stripeProductObject, product)
+                                        const differencePriceObject = _.deepDiff(docToUpdate.stripePriceObject, price)
 
-                                        // If there is a difference, update the document
-                                        if (!_.isEmpty(difference)) {
+                                        console.log('-- -- differenceProductObject:', differenceProductObject)
+
+                                        // If there is a differenceProductObject, update the document
+                                        if (!_.isEmpty(differenceProductObject)) {
                                             console.log('-- -- Difference found, updating the document')
 
-                                            /* const update = await self.apos.doc.db.updateOne(
+                                            await self.apos.doc.db.updateOne(
                                                 { _id: docToUpdate._id },
-                                                { $set: { 'productData': product } },
+                                                { $set: { 'stripeProductObject': product } },
                                                 { upsert: true }
-                                            ) */
+                                            )
+                                            differenceResults[docToUpdate._id] = { 'stripeProductObject': { 'difference': differenceProductObject } }
+                                        }
+                                        else if (product.default_price && !_.isEmpty(differenceProductObject)) {
 
-                                            differenceResults[docToUpdate._id] = { 'difference': difference }
+                                            await self.apos.doc.db.updateOne(
+                                                { _id: docToUpdate._id },
+                                                { $set: { 'stripePriceObject': price } },
+                                                { upsert: true }
+                                            )
 
-                                            // console.log('-- -- update', update);
-                                        } else {
+                                            differenceResults[docToUpdate._id] = { 'stripeProductObject': { 'difference': differenceProductObject } }
+                                        }
+                                        else {
                                             console.log('-- -- No difference found, skipping update')
                                         }
                                     }
@@ -170,10 +181,12 @@ module.exports = {
                                         let stripeProductInstance = self.apos.stripeProduct.newInstance()
                                         stripeProductInstance.title = product.name
                                         stripeProductInstance.slug = self.apos.util.slugify(product.name)
-                                        stripeProductInstance.productData = product
+                                        stripeProductInstance.stripeProductObject = product
 
-                                        console.log('-- -- API -- Stripe Products - Synchronize - product.id:', product.id)
-                                        console.log('-- -- API -- Stripe Products - Synchronize - stripeProductInstance:', stripeProductInstance)
+                                        console.log('-- -- product:', product)
+                                        if (product.default_price) {
+                                            stripeProductInstance.stripePriceObject = price
+                                        }
 
                                         const insert = await self.apos.stripeProduct.insert(req, stripeProductInstance)
                                         console.log('else - insert:', insert)
