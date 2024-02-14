@@ -95,7 +95,7 @@ module.exports = {
                             label: 'Product ID',
                             copyToClipboard: true,
                             openInNewTab: true,
-                            openInNewTabPrepend: `${process.env.STRIPE_DASHBOARD_BASE_URL}${process.env.STRIPE_TEST ? '/test' : ''}${process.env.STRIPE_TEST ? '/test' : ''}/products/`
+                            openInNewTabPrepend: `${process.env.STRIPE_DASHBOARD_BASE_URL}${process.env.STRIPE_TEST ? '/test' : ''}/products/`
                         },
                         name: {
                             type: 'readOnly',
@@ -177,20 +177,6 @@ module.exports = {
     filters: {
         remove: ['visibility']
     },
-    init(self) {
-        self.addReadOnlyFieldType()
-    },
-    methods(self) {
-        return {
-            addReadOnlyFieldType() {
-                self.apos.schema.addFieldType({
-                    name: 'readOnly',
-                    convert: self.convertInput,
-                    vueComponent: 'InputReadOnly'
-                })
-            }
-        }
-    }
     /* init(self) {
         const groupName = 'stripe'
         const itemsToAdd = ['stripe-products/product']

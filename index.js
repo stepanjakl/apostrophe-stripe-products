@@ -44,19 +44,13 @@ _.mixin({ deepDiff })
 const Stripe = require('stripe')
 const stripe = Stripe(process.env.STRIPE_KEY)
 
-// Use body-parser to retrieve the raw body as a buffer
-/* const bodyParser = require('body-parser')
-
-const stripeWebhookEnpoint = '/api/v1/stripe/checkout/webhook' */
-
 module.exports = {
     options: {
         alias: 'stripeProducts',
         i18n: {
             ns: 'stripeProducts',
             browser: true
-        },
-        /* csrfExceptions: [stripeWebhookEnpoint] */
+        }
     },
     bundle: {
         directory: 'modules',
@@ -87,193 +81,79 @@ module.exports = {
             post: {
                 // POST /api/v1/stripe/products/synchronize
                 '/api/v1/stripe/products/synchronize': async function (req, options) {
-                    console.log('-- -- API -- Stripe Products - Synchronize')
-                    console.log('-- -- API -- Stripe Products - Synchronize - options:', options)
-                    console.log('-- -- API -- Stripe Products - Synchronize - req.body:', req.body)
+                    return self.apos.modules['@apostrophecms/job'].run(req, async (req, reporting) => {
+                        // Set total for reporting
+                        reporting.setTotal(Math.round(await self.apos.stripeProduct.find(req).toCount() / 2))
+                        let differenceResults = {}
+                        let startingAfterId
 
-                    async function delay(ms) {
-                        // return await for better async stack trace support in case of errors.
-                        return await new Promise(resolve => setTimeout(resolve, ms))
-                    }
+                        while (true) {
+                            // Fetch products from Stripe
+                            const productList = await stripe.products.list({ limit: 2, starting_after: startingAfterId })
 
-                    /* jobThree = await jobModule.run(
-                        req,
-                        async function(req, reporters) {
-                          let count = 1;
-                          reporters.setTotal(articleIds.length);
+                            for (const product of productList?.data || []) {
+                                // Check if the document exists in the database
+                                const docsToUpdate = await self.apos.doc.db.find({ 'stripeProductObject.id': product.id }).toArray()
+                                let price = product.default_price ? await stripe.prices.retrieve(product.default_price) : null
 
-                          for (const id of articleIds) {
-                            await Promise.delay(3);
-                            logged.push(id);
-                            if (count % 2) {
-                              reporters.success();
-                            } else {
-                              reporters.failure();
-                            }
-                            count++;
-                          }
-                        }
-                      ) */
+                                if (product.default_price && price) {
+                                    price.unit_amount = (price.unit_amount / 100).toFixed(2)
+                                }
 
-                    return self.apos.modules['@apostrophecms/job'].run(
-                        req,
-                        async (req, reporting) => {
-
-                            reporting.setTotal(Math.round(await self.apos.stripeProduct.find(req).toCount() / 2))
-
-                            let hasMoreProducts = true
-                            let startingAfterId = undefined
-                            let differenceResults = {}
-
-                            while (hasMoreProducts) {
-                                // Make a request to fetch products
-                                const productList = await stripe.products.list({
-                                    limit: 2,
-                                    starting_after: startingAfterId
-                                    /* expand: ['data.default_price'] */
-                                })
-
-                                for (const product of productList?.data || []) {
-                                    const docToUpdate = await self.apos.doc.db.find({ 'stripeProductObject.id': product.id }).next()
-                                    console.log('-- -- -- -- -- -- -- -- -- -- -- -- -- -- --')
-                                    /* console.log('-- -- product:', product)
-                                    console.log('-- -- docToUpdate:', docToUpdate?.stripeProductObject) */
-
-                                    if (product.default_price) {
-                                        const price = await stripe.prices.retrieve(product.default_price)
-                                        // TODO convert cents
-                                    }
-
-                                    if (docToUpdate) {
-
+                                if (docsToUpdate.length > 0) {
+                                    for (const docToUpdate of docsToUpdate) {
+                                        // Calculate differences in product and price objects
                                         const differenceProductObject = _.deepDiff(docToUpdate.stripeProductObject, product)
-                                        const differencePriceObject = _.deepDiff(docToUpdate.stripePriceObject, price)
+                                        const differencePriceObject = product.default_price ? _.deepDiff(docToUpdate.stripePriceObject, price) : null
 
-                                        console.log('-- -- differenceProductObject:', differenceProductObject)
-
-                                        // If there is a differenceProductObject, update the document
-                                        if (!_.isEmpty(differenceProductObject)) {
-                                            console.log('-- -- Difference found, updating the document')
-
+                                        // Update the document if differences are found
+                                        if (!_.isEmpty(differenceProductObject) || !_.isEmpty(differencePriceObject)) {
+                                            // Update the document with the new product and price objects
                                             await self.apos.doc.db.updateOne(
                                                 { _id: docToUpdate._id },
-                                                { $set: { 'stripeProductObject': product } },
-                                                { upsert: true }
-                                            )
-                                            differenceResults[docToUpdate._id] = { 'stripeProductObject': { 'difference': differenceProductObject } }
-                                        }
-                                        else if (product.default_price && !_.isEmpty(differenceProductObject)) {
-
-                                            await self.apos.doc.db.updateOne(
-                                                { _id: docToUpdate._id },
-                                                { $set: { 'stripePriceObject': price } },
+                                                { $set: { 'stripeProductObject': product, 'stripePriceObject': price } },
                                                 { upsert: true }
                                             )
 
-                                            differenceResults[docToUpdate._id] = { 'stripeProductObject': { 'difference': differenceProductObject } }
-                                        }
-                                        else {
-                                            console.log('-- -- No difference found, skipping update')
+                                            // Include 'difference' objects only if they are not empty
+                                            if (!_.isEmpty(differenceProductObject)) {
+                                                differenceResults[docToUpdate._id] = { 'stripeProductObject': { 'difference': differenceProductObject } }
+                                            }
+                                            if (!_.isEmpty(differencePriceObject)) {
+                                                differenceResults[docToUpdate._id] = { 'stripePriceObject': { 'difference': differencePriceObject } }
+                                            }
                                         }
                                     }
-                                    else {
-                                        // if a record doesn't exist, insert a new one
-                                        let stripeProductInstance = self.apos.stripeProduct.newInstance()
-                                        stripeProductInstance.title = product.name
-                                        stripeProductInstance.slug = self.apos.util.slugify(product.name)
-                                        stripeProductInstance.stripeProductObject = product
-
-                                        console.log('-- -- product:', product)
-                                        if (product.default_price) {
-                                            stripeProductInstance.stripePriceObject = price
-                                        }
-
-                                        const insert = await self.apos.stripeProduct.insert(req, stripeProductInstance)
-                                        console.log('else - insert:', insert)
-                                    }
-                                }
-
-                                // Update startingAfterId for the next request
-                                if (productList.data.length > 0) {
-                                    startingAfterId = productList.data[productList.data.length - 1].id
-                                }
-
-                                // Check if there are more products to fetch
-                                hasMoreProducts = productList.has_more
-                                console.log('-- -- hasMoreProducts:', hasMoreProducts)
-
-                                // You can add your own condition to break out of the loop
-                                // For example, break the loop if you have fetched a certain number of products
-                                // or based on any other condition you need
-                                if (!hasMoreProducts) {
-                                    console.log('-- -- differenceResults:', differenceResults)
-                                    reporting.setResults(differenceResults)
-                                    reporting.success()
-                                    break
-                                }
-                            }
-
-
-                            // await delay(3000)
-
-                            return true
-
-                            const productList = await stripe.products.list({
-                                limit: 1
-                            })
-
-                            console.log('productList:', productList)
-
-                            productList?.data?.forEach(async product => {
-                                const docsFound = await self.apos.doc.db.find({ slug: product.id }).toArray()
-
-                                if (docsFound.length !== 0) {
-                                    // if a record exists, update
-                                    console.log('true - docsFound:', docsFound)
-
-                                    /* docsFound.forEach(async doc => {
-                                        // doc.test = 'test-3'
-
-                                    }) */
-
-                                    const update = await self.apos.doc.db.updateMany(
-                                        { $or: docsFound },
-                                        { $set: { test: 'test-3' } },
-                                        { upsert: true })
                                 }
                                 else {
-                                    // if a record doesn't exist, insert a new one
+                                    // Insert a new document if it doesn't exist
                                     let stripeProductInstance = self.apos.stripeProduct.newInstance()
-                                    stripeProductInstance.slug = product.id
-                                    stripeProductInstance.test = 'test-1'
+                                    stripeProductInstance.title = product.name
+                                    stripeProductInstance.slug = self.apos.util.slugify(product.name)
+                                    stripeProductInstance.stripeProductObject = product
+                                    stripeProductInstance.stripePriceObject = product.default_price ? price : null
 
-                                    console.log('-- -- API -- Stripe Products - Synchronize - product.id:', product.id)
-                                    console.log('-- -- API -- Stripe Products - Synchronize - stripeProductInstance:', stripeProductInstance)
-
-                                    const insert = await self.apos.stripeProduct.insert(req, stripeProductInstance)
-                                    console.log('else - insert:', insert)
+                                    await self.apos.stripeProduct.insert(req, stripeProductInstance)
                                 }
-                            })
+                            }
 
+                            // Update startingAfterId for the next request
+                            startingAfterId = productList.data.length > 0 ? productList.data[productList.data.length - 1].id : undefined
 
-
-
-
-                        },
-                        {
-                            action: 'synchronize-stripe-products',
-                            ids: ['000']
+                            // Check if there are more products to fetch
+                            if (!productList.has_more) {
+                                // Finalize the job and pass doc changes to the results field
+                                reporting.setResults(differenceResults)
+                                reporting.success()
+                                break
+                            }
                         }
-                    )
-
-                    // return req.res.redirect(303, checkoutSession.url)
+                    })
                 }
             }
         }
     }
 }
-
-// console.log('-- getBundleModuleNames', getBundleModuleNames())
 
 function getBundleModuleNames() {
     return fs.readdirSync(path.resolve(__dirname, 'modules')).reduce((result, dir) => {
