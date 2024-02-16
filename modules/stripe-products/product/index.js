@@ -18,27 +18,20 @@ module.exports = {
                     label: 'stripeProducts:synchronizeProducts',
                     canEdit: true,
                     button: true,
-                    // iconOnly: true,
-                    // icon: 'dots-vertical-icon',
-                    // type: 'outline'
+                    /* modalOptions: {
+                        title: 'stripeProducts:synchronizeProducts',
+                        description: 'stripeProducts:synchronizeProductsUtilityConfirmation',
+                        confirmationButton: 'stripeProducts:synchronizeProductsUtilityConfirmationButton'
+                    },
+                    messages: {
+                        progress: 'stripeProducts:synchronizeProductsNotificationProgressMessage',
+                        completed: 'stripeProducts:synchronizeProductsNotificationCompletedMessage'
+                    }, */ // this only works for batchOperations unfortunately
                     eventOptions: {
                         event: 'synchronize-stripe-products'
                     }
-                },
-                /* test: {
-                    label: 'AHOJ',
-                    canEdit: true,
-                    relationship: true,
-                    label: {
-                        key: 'TEST',
-                        type: `$t(${self.options.label})`
-                    },
-                    eventOptions: {
-                        event: 'edit',
-                        type: self.__meta.name
-                    }
-                } */
-            },
+                }
+            }
         }
     },
     columns: {
@@ -51,11 +44,11 @@ module.exports = {
                 label: 'Product ID',
                 component: 'AposCellBasic'
             },
-            'stripeProductObject.created': {
+            'stripeProductObject.created_timestamp': {
                 label: 'Created',
                 component: 'AposCellDate'
             },
-            'stripeProductObject.updated': {
+            'stripeProductObject.updated_timestamp': {
                 label: 'Updated',
                 component: 'AposCellDate'
             },
@@ -81,7 +74,7 @@ module.exports = {
             } */
         },
         remove: ['title', 'lastPublishedAt', 'updatedAt'],
-        order: ['stripeProductObject.name', 'stripeProductObject.id', 'stripeProductObject.created', 'stripeProductObject.updated']
+        order: ['stripeProductObject.name', 'stripeProductObject.id', 'stripeProductObject.created_timestamp', 'stripeProductObject.updated_timestamp']
     },
     fields: {
         add: {
@@ -95,7 +88,7 @@ module.exports = {
                             label: 'Product ID',
                             copyToClipboard: true,
                             openInNewTab: true,
-                            openInNewTabPrepend: `${process.env.STRIPE_DASHBOARD_BASE_URL}${process.env.STRIPE_TEST ? '/test' : ''}/products/`
+                            openInNewTabPrepend: `${process.env.STRIPE_DASHBOARD_BASE_URL}${process.env.STRIPE_TEST_MODE ? '/test' : ''}/products/`
                         },
                         name: {
                             type: 'readOnly',
@@ -110,12 +103,12 @@ module.exports = {
                             type: 'readOnly',
                             label: 'Active'
                         },
-                        created: {
+                        created_timestamp: {
                             type: 'readOnly',
                             label: 'Created timestamp',
                             copyToClipboard: true
                         },
-                        updated: {
+                        updated_timestamp: {
                             type: 'readOnly',
                             label: 'Updated timestamp',
                             copyToClipboard: true
@@ -128,12 +121,12 @@ module.exports = {
                 type: 'object',
                 fields: {
                     add: {
-                        'id': {
+                        id: {
                             type: 'readOnly',
                             label: 'Price ID',
                             copyToClipboard: true,
                             openInNewTab: true,
-                            openInNewTabPrepend: `${process.env.STRIPE_DASHBOARD_BASE_URL}${process.env.STRIPE_TEST ? '/test' : ''}/prices/`
+                            openInNewTabPrepend: `${process.env.STRIPE_DASHBOARD_BASE_URL}${process.env.STRIPE_TEST_MODE ? '/test' : ''}/prices/`
                         },
                         unit_amount: {
                             type: 'readOnly',
@@ -176,34 +169,5 @@ module.exports = {
     },
     filters: {
         remove: ['visibility']
-    },
-    /* init(self) {
-        const groupName = 'stripe'
-        const itemsToAdd = ['stripe-products/product']
-
-        // Check if 'stripe' already exists in self.apos.adminBar.groups
-        const existingStripeGroup = self.apos.adminBar.groups.find(group => group.name === groupName)
-
-        const newStripeGroup = {
-            name: groupName,
-            label: 'Stripe',
-            items: itemsToAdd
-        }
-
-        // If 'stripe' exists, add items to the existing one; otherwise, create a new group
-        if (existingStripeGroup) {
-            existingStripeGroup.items = existingStripeGroup.items.concat(itemsToAdd)
-        } else {
-            self.apos.adminBar.groups.push(newStripeGroup)
-        }
-    }, */
-    /* handlers(self, options) {
-        return {
-            'synchronizeProducts': {
-                async fetchAndSaveStripeProducts() {
-                    console.log('-- -- called synchronizeProducts');
-                }
-            }
-        }
-    } */
+    }
 }
