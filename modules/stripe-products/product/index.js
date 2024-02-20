@@ -6,7 +6,11 @@ module.exports = {
         pluralLabel: 'Products',
         quickCreate: false,
         searchable: false,
-        showCreate: false
+        showCreate: false,
+        publicApiProjection: {
+            'stripeProductObject.id': 1,
+            'stripeProductObject.name': 1
+        }
     },
     batchOperations: {
         remove: ['publish']

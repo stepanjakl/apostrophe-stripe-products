@@ -98,80 +98,82 @@ module.exports = {
     apiRoutes(self) {
         return {
             post: {
-                // POST /api/v1/stripe/products/synchronize
-                '/api/v1/stripe/products/synchronize': async function (req, options) {
-                    return self.apos.modules['@apostrophecms/job'].run(req, async (req, reporting) => {
-                        // Set total for reporting
-                        reporting.setTotal(Math.round(await self.apos.stripeProduct.find(req).toCount() / 2))
-                        let differenceResults = {}
-                        let startingAfterId
+                // POST /api/v1/stripe-products/synchronize
+                '/api/v1/stripe-products/synchronize': async function (req, options) {
+                    if (req.user && req.user.role === 'editor' || req.user.role === 'admin') {
+                        return self.apos.modules['@apostrophecms/job'].run(req, async (req, reporting) => {
+                            // Set total for reporting
+                            reporting.setTotal(Math.round(await self.apos.stripeProduct.find(req).toCount() / 4))
+                            let differenceResults = {}
+                            let startingAfterId
 
-                        while (true) {
-                            // Fetch products from Stripe
-                            const productList = await stripe.products.list({ limit: 2, starting_after: startingAfterId })
+                            while (true) {
+                                // Fetch products from Stripe
+                                const productList = await stripe.products.list({ limit: 2, starting_after: startingAfterId })
 
-                            for (const product of productList?.data || []) {
-                                product.created_timestamp = new Date(product.created * 1000).toISOString()
-                                product.updated_timestamp = new Date(product.updated * 1000).toISOString()
+                                for (const product of productList?.data || []) {
+                                    product.created_timestamp = new Date(product.created * 1000).toISOString()
+                                    product.updated_timestamp = new Date(product.updated * 1000).toISOString()
 
-                                // Check if the document exists in the database
-                                const docsToUpdate = await self.apos.doc.db.find({ 'stripeProductObject.id': product.id }).toArray()
-                                let price = product.default_price ? await stripe.prices.retrieve(product.default_price) : null
+                                    // Check if the document exists in the database
+                                    const docsToUpdate = await self.apos.doc.db.find({ 'stripeProductObject.id': product.id }).toArray()
+                                    let price = product.default_price ? await stripe.prices.retrieve(product.default_price) : null
 
-                                if (product.default_price && price) {
-                                    price.unit_amount = (price.unit_amount / 100).toFixed(2)
-                                    price.created_timestamp = new Date(price.created * 1000).toISOString()
-                                }
+                                    if (product.default_price && price) {
+                                        price.unit_amount = (price.unit_amount / 100).toFixed(2)
+                                        price.created_timestamp = new Date(price.created * 1000).toISOString()
+                                    }
 
-                                if (docsToUpdate.length > 0) {
-                                    for (const docToUpdate of docsToUpdate) {
-                                        // Calculate differences in product and price objects
-                                        const differenceProductObject = _.deepDiff(docToUpdate.stripeProductObject, product)
-                                        const differencePriceObject = product.default_price ? _.deepDiff(docToUpdate.stripePriceObject, price) : null
+                                    if (docsToUpdate.length > 0) {
+                                        for (const docToUpdate of docsToUpdate) {
+                                            // Calculate differences in product and price objects
+                                            const differenceProductObject = _.deepDiff(docToUpdate.stripeProductObject, product)
+                                            const differencePriceObject = product.default_price ? _.deepDiff(docToUpdate.stripePriceObject, price) : null
 
-                                        // Update the document if differences are found
-                                        if (!_.isEmpty(differenceProductObject) || !_.isEmpty(differencePriceObject)) {
-                                            // Update the document with the new product and price objects
-                                            await self.apos.doc.db.updateOne(
-                                                { _id: docToUpdate._id },
-                                                { $set: { 'stripeProductObject': product, 'stripePriceObject': price } },
-                                                { upsert: true }
-                                            )
+                                            // Update the document if differences are found
+                                            if (!_.isEmpty(differenceProductObject) || !_.isEmpty(differencePriceObject)) {
+                                                // Update the document with the new product and price objects
+                                                await self.apos.doc.db.updateOne(
+                                                    { _id: docToUpdate._id },
+                                                    { $set: { 'stripeProductObject': product, 'stripePriceObject': price } },
+                                                    { upsert: true }
+                                                )
 
-                                            // Include 'difference' objects only if they are not empty
-                                            if (!_.isEmpty(differenceProductObject)) {
-                                                differenceResults[docToUpdate._id] = { 'stripeProductObject': { 'difference': differenceProductObject } }
-                                            }
-                                            if (!_.isEmpty(differencePriceObject)) {
-                                                differenceResults[docToUpdate._id] = { 'stripePriceObject': { 'difference': differencePriceObject } }
+                                                // Include 'difference' objects only if they are not empty
+                                                if (!_.isEmpty(differenceProductObject)) {
+                                                    differenceResults[docToUpdate._id] = { 'stripeProductObject': { 'difference': differenceProductObject } }
+                                                }
+                                                if (!_.isEmpty(differencePriceObject)) {
+                                                    differenceResults[docToUpdate._id] = { 'stripePriceObject': { 'difference': differencePriceObject } }
+                                                }
                                             }
                                         }
                                     }
-                                }
-                                else {
-                                    // Insert a new document if it doesn't exist
-                                    let stripeProductInstance = self.apos.stripeProduct.newInstance()
-                                    stripeProductInstance.title = product.name
-                                    stripeProductInstance.slug = self.apos.util.slugify(product.name)
-                                    stripeProductInstance.stripeProductObject = product
-                                    stripeProductInstance.stripePriceObject = product.default_price ? price : null
+                                    else {
+                                        // Insert a new document if it doesn't exist
+                                        let stripeProductInstance = self.apos.stripeProduct.newInstance()
+                                        stripeProductInstance.title = product.name
+                                        stripeProductInstance.slug = self.apos.util.slugify(product.name)
+                                        stripeProductInstance.stripeProductObject = product
+                                        stripeProductInstance.stripePriceObject = product.default_price ? price : null
 
-                                    await self.apos.stripeProduct.insert(req, stripeProductInstance)
+                                        await self.apos.stripeProduct.insert(req, stripeProductInstance)
+                                    }
+                                }
+
+                                // Update startingAfterId for the next request
+                                startingAfterId = productList.data.length > 0 ? productList.data[productList.data.length - 1].id : undefined
+
+                                // Check if there are more products to fetch
+                                if (!productList.has_more) {
+                                    // Finalize the job and pass doc changes to the results field
+                                    reporting.setResults(differenceResults)
+                                    reporting.success()
+                                    break
                                 }
                             }
-
-                            // Update startingAfterId for the next request
-                            startingAfterId = productList.data.length > 0 ? productList.data[productList.data.length - 1].id : undefined
-
-                            // Check if there are more products to fetch
-                            if (!productList.has_more) {
-                                // Finalize the job and pass doc changes to the results field
-                                reporting.setResults(differenceResults)
-                                reporting.success()
-                                break
-                            }
-                        }
-                    })
+                        })
+                    }
                 }
             }
         }
