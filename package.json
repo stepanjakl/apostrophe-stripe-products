@@ -1,31 +1,47 @@
 {
     "name": "@stepanjakl/apostrophe-stripe-products",
-    "version": "3.0.0",
-    "description": "Stripe Products For Apostrophe 3",
-    "main": "index.js",
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/stepanjakl/apostrophe-stripe-products.git"
-    },
-    "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1"
-    },
-    "author": "Štěpán Jákl",
-    "homepage": "https://github.com/stepanjakl/apostrophe-stripe-products#readme",
-    "license": "MIT",
-    "bugs": {
-        "url": "https://github.com/stepanjakl/apostrophe-stripe-products/issues"
-    },
+    "version": "0.0.2",
+    "description": "Stripe Products For ApostropheCMS",
     "keywords": [
         "apostrophe",
         "apostrophecms",
         "stripe"
     ],
-    "publishConfig": {
-        "access": "public"
+    "homepage": "https://github.com/stepanjakl/apostrophe-stripe-products#readme",
+    "bugs": {
+        "url": "https://github.com/stepanjakl/apostrophe-stripe-products/issues"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/stepanjakl/apostrophe-stripe-products.git"
+    },
+    "license": "MIT",
+    "author": "Štěpán Jákl",
+    "main": "index.js",
+    "scripts": {
+        "eslint": "eslint .",
+        "mocha": "mocha",
+        "stylelint": "stylelint modules/**/*.{scss,vue}",
+        "test": "npm run eslint && npm run stylelint && npm run mocha"
     },
     "dependencies": {
-        "lodash": "^4.17.21",
-        "stripe": "^14.13.0"
+        "apostrophe": "^4.x.x",
+        "body-parser": "^1.20.2",
+        "eslint": "^8.x.x",
+        "eslint-config-apostrophe": "^4.3.0",
+        "eslint-config-standard": "^17.1.0",
+        "eslint-plugin-import": "^2.29.1",
+        "eslint-plugin-mocha": "^10.4.3",
+        "eslint-plugin-node": "^11.1.0",
+        "eslint-plugin-promise": "^6.1.1",
+        "eslint-plugin-vue": "^9.25.0",
+        "mocha": "^10.4.0",
+        "read-only-field": "npm:@stepanjakl/apostrophe-read-only-field@latest",
+        "stripe": "^15.3.0",
+        "stylelint": "^15.x.x",
+        "stylelint-config-apostrophe": "^3.0.2"
+    },
+    "publishConfig": {
+        "access": "public"
     }
 }

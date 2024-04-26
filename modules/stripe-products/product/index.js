@@ -9,7 +9,14 @@ module.exports = {
         showCreate: false,
         publicApiProjection: {
             'stripeProductObject.id': 1,
-            'stripeProductObject.name': 1
+            'stripeProductObject.name': 1,
+            'stripeProductObject.type': 1,
+            'stripeProductObject.images': 1,
+
+            'stripePriceObject.id': 1,
+            'stripePriceObject.unit_amount': 1,
+            'stripePriceObject.currency': 1,
+            'stripePriceObject.type': 1
         }
     },
     batchOperations: {
@@ -92,7 +99,7 @@ module.exports = {
                             label: 'Product ID',
                             copyToClipboard: true,
                             openInNewTab: true,
-                            openInNewTabPrepend: `${process.env.STRIPE_DASHBOARD_BASE_URL}${process.env.STRIPE_TEST_MODE ? '/test' : ''}/products/`
+                            openInNewTabPrepend: `${process.env.STRIPE_DASHBOARD_BASE_URL}${process.env.STRIPE_TEST_MODE === 'false' ? '' : '/test'}/products/`
                         },
                         name: {
                             type: 'readOnly',
@@ -130,7 +137,7 @@ module.exports = {
                             label: 'Price ID',
                             copyToClipboard: true,
                             openInNewTab: true,
-                            openInNewTabPrepend: `${process.env.STRIPE_DASHBOARD_BASE_URL}${process.env.STRIPE_TEST_MODE ? '/test' : ''}/prices/`
+                            openInNewTabPrepend: `${process.env.STRIPE_DASHBOARD_BASE_URL}${process.env.STRIPE_TEST_MODE === 'false' ? '' : '/test'}/prices/`
                         },
                         unit_amount: {
                             type: 'readOnly',

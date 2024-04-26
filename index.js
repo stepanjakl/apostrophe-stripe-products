@@ -99,17 +99,17 @@ module.exports = {
         return {
             post: {
                 // POST /api/v1/stripe-products/synchronize
-                '/api/v1/stripe-products/synchronize': async function (req, options) {
+                '/api/v1/stripe-products/synchronize': async function (req) {
                     if (req.user && req.user.role === 'editor' || req.user.role === 'admin') {
                         return self.apos.modules['@apostrophecms/job'].run(req, async (req, reporting) => {
-                            // Set total for reporting
+                            // Set total for reporting based on the existing collection documents
                             reporting.setTotal(Math.round(await self.apos.stripeProduct.find(req).toCount() / 4))
                             let differenceResults = {}
                             let startingAfterId
 
                             while (true) {
                                 // Fetch products from Stripe
-                                const productList = await stripe.products.list({ limit: 2, starting_after: startingAfterId })
+                                const productList = await stripe.products.list({ active: true, limit: 2, starting_after: startingAfterId })
 
                                 for (const product of productList?.data || []) {
                                     product.created_timestamp = new Date(product.created * 1000).toISOString()

@@ -24,9 +24,6 @@ This module adds a piece module and utility operation to automatically synchroni
 <br>
 
 <table>
-<tr>
-<td colspan="4"><a href="./public/images/checkout.png" target="_blank"><img src="./public/images/checkout.png" alt="Checkout"></a></td>
-</tr>
   <tr>
     <td><a href="./public/images/admin-1.png"><img src="./public/images/admin-1.png" alt="Admin UI 1"></a></td>
     <td><a href="./public/images/admin-2.png"><img src="./public/images/admin-2.png" alt="Admin UI 2"></a></td>
@@ -51,7 +48,7 @@ npm install read-only-field@npm:@stepanjakl/apostrophe-read-only-field
 
 ## Examples
 
-**It is highly recommended to explore the [stripe-examples](https://github.com/) repository, which offers a comprehensive set of examples and full configurations demonstrating how to set up a complete e-commerce store experience.**
+**It is highly recommended to explore the [apostrophe-stripe-examples](https://github.com/stepanjakl/apostrophe-stripe-examples) repository, which offers a comprehensive set of examples and full configurations demonstrating how to set up a complete e-commerce store experience.**
 
 <br>
 
@@ -63,11 +60,17 @@ First, add installed modules to your configuration in the `app.js` root file:
 require('apostrophe')({
   shortName: 'project-name',
   modules: {
+    // Custom fields
     'read-only-field': {},
-    'stripe-products': {}
+
+    // Stripe Products
+    'stripe-products': {},
+    'stripe-products/product': {}
   }
 });
 ```
+
+<br>
 
 Then, set global variables inside the `.env` file. It's important to set the `STRIPE_TEST_MODE` variable to anything other than `false` to enable [test mode](https://docs.stripe.com/test-mode).
 
@@ -86,81 +89,11 @@ STRIPE_DASHBOARD_BASE_URL='https://dashboard.stripe.com'
 
 ## API Routes
 
-The `stripe-products` module has one custom API route that is triggered via the `Synchrnize Products` operation utility:
-
-<br>
-
-#### `'/api/v1/stripe-products/synchronize'`:
-
-This API route handles POST requests to create a new [Stripe Checkout Session](https://docs.stripe.com/payments/checkout/how-checkout-works). It is a central piece of the module and facilitates initiating payment transactions through Stripe. Here's an example of a request using the Fetch API:
-
-```javascript
-const requestOptions = {
-  method: 'POST',
-  headers: {
-    'Accept': 'application/json',
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    line_items: [
-      {
-        price: 'price_test_abc',
-        quantity: 2
-      },
-      {
-        price: 'price_test_xyz',
-        quantity: 1
-      }
-    ],
-    success_url: 'https://example.com/success',
-    cancel_url: 'https://example.com/cancel'
-  })
-};
-
-fetch('/api/v1/stripe/checkout/sessions/create', requestOptions)
-  .then(response => {
-    if (!response.ok) {
-      throw new Error('Failed to create checkout session');
-    }
-    return response.json();
-  })
-  .then(data => {
-    // Handle the response data, e.g., redirect to the checkout URL
-    const checkoutUrl = data.url;
-    console.log('Checkout URL:', checkoutUrl);
-    // Example: Redirecting to the checkout URL
-    window.location.href = checkoutUrl;
-  })
-  .catch(error => {
-    console.error('Error:', error);
-    // Handle errors, e.g., show an error message to the user
-  });
-```
-
-<br>
-
-#### `'/api/v1/stripe/checkout/webhook'`:
-
-This API route is used by the local listener to receive asynchronous Stripe events and save the completed checkout session to the database.
-
-Set up event forwarding with the CLI and send all Stripe events to your local webhook endpoint for testing purposes:
-
-```shell
-stripe listen --forward-to localhost:5000/api/v1/stripe/checkout/webhook
-```
-
-Use the PM2 process manager to run the `listen` command in production:
-
-```shell
-pm2 start --name stripe-listener "stripe listen --events checkout.session.completed --forward-to localhost:5000/api/v1/stripe/checkout/webhook"
-```
-
-[Read more about the Stripe webhooks](https://docs.stripe.com/webhooks/quickstart)
+The `stripe-products` module contains a custom API route (`'/api/v1/stripe-products/synchronize'`) triggered by the `Synchronize Products` utility operation. It is executed through the `'@apostrophecms/job'` module. Once the job is completed, it saves the difference between the existing and received data to the results object in the `aposJobs` collection document.
 
 <br>
 
 ## TODOs (Limitations)
 
-- Option for one-time and recurring payments
-- Enable checkout session with more than 99 items
-- Add other extra checkout session options (e.g. custom styles)
+- add tests
+- archive products when they are not included in the API request payload
