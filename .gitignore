@@ -1,4 +1,9 @@
 .DS_Store
 node_modules
+<<<<<<< HEAD
 package-lock.json
 test/data
+=======
+bun.lockb
+package-lock.json
+>>>>>>> b5013c123051cf53cc76bc787ce89da8123bdfa5

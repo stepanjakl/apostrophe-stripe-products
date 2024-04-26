@@ -1,0 +1,7 @@
+{
+    "synchronizeProducts": "Synchronize Products",
+    "synchronizeProductsUtilityConfirmation": "Are you sure you want to synchronize all Stripe products data?",
+    "synchronizeProductsUtilityConfirmationButton": "Yes, synchronize all products data.",
+    "synchronizeProductsNotificationProgressMessage": "Pulling data from the Stripe account...",
+    "synchronizeProductsNotificationCompletedMessage": "Products synced."
+}
