@@ -19,24 +19,26 @@
 
 <br>
 
-This module adds a piece module and utility operation to automatically synchronise Stripe Products with the database. Saved products can be easily accessed anv viewed via the admin UI.
+This module adds a piece module and utility operation to automatically synchronize Stripe Products with the database. Saved products can be easily accessed and viewed via the admin UI.
 
 <br>
 
 <table>
-  <tr>
-    <td><a href="./public/images/admin-1.png"><img src="./public/images/admin-1.png" alt="Admin UI 1"></a></td>
-    <td><a href="./public/images/admin-2.png"><img src="./public/images/admin-2.png" alt="Admin UI 2"></a></td>
-    <td><a href="./public/images/admin-3.png"><img src="./public/images/admin-3.png" alt="Admin UI 3"></a></td>
-    <td><a href="./public/images/admin-4.png"><img src="./public/images/admin-4.png" alt="Admin UI 4"></a></td>
-  </tr>
+    <tr>
+        <td colspan="3"><a href="./public/images/admin-1.png"><img src="./public/images/admin-1.png" alt="Admin UI 1"></a></td>
+    </tr>
+    <tr>
+        <td><a href="./public/images/admin-2.png"><img src="./public/images/admin-2.png" alt="Admin UI 2"></a></td>
+        <td><a href="./public/images/admin-3.png"><img src="./public/images/admin-3.png" alt="Admin UI 3"></a></td>
+        <td><a href="./public/images/admin-4.png"><img src="./public/images/admin-4.png" alt="Admin UI 4"></a></td>
+    </tr>
 </table>
 
 <br>
 
 ## Installation
 
-Use your preferred package manager to install the module. You'll also need to install the [read-only-field](https://github.com/) package alongside it:
+Use your preferred package manager to install the module. You'll also need to install the [read-only-field](https://github.com/stepanjakl/apostrophe-read-only-field) package alongside it:
 
 ```zsh
 npm install stripe-products@npm:@stepanjakl/apostrophe-stripe-products
@@ -48,7 +50,7 @@ npm install read-only-field@npm:@stepanjakl/apostrophe-read-only-field
 
 ## Examples
 
-**It is highly recommended to explore the [apostrophe-stripe-examples](https://github.com/stepanjakl/apostrophe-stripe-examples) repository, which offers a comprehensive set of examples and full configurations demonstrating how to set up a complete e-commerce store experience.**
+It is highly recommended to explore the [apostrophe-stripe-examples](https://github.com/stepanjakl/apostrophe-stripe-examples) repository, which offers a comprehensive set of examples and full configurations demonstrating how to set up a complete e-commerce store experience.
 
 <br>
 
@@ -58,23 +60,23 @@ First, add installed modules to your configuration in the `app.js` root file:
 
 ```js
 require('apostrophe')({
-  shortName: 'project-name',
-  modules: {
-    // Custom fields
-    'read-only-field': {},
+    shortName: 'project-name',
+    modules: {
+        // Custom fields
+        'read-only-field': {},
 
-    // Stripe Products
-    'stripe-products': {},
-    'stripe-products/product': {}
-  }
+        // Stripe Products
+        'stripe-products': {},
+        'stripe-products/product': {}
+    }
 });
 ```
 
 <br>
 
-Then, set global variables inside the `.env` file. It's important to set the `STRIPE_TEST_MODE` variable to anything other than `false` to enable [test mode](https://docs.stripe.com/test-mode).
+Then, set global variables inside the `.env` file. It's important to set the `STRIPE_TEST_MODE` variable to anything other than `false` to enable [test mode](https://docs.stripe.com/).
 
-```dotenv
+```js
 PORT='4000'
 APOS_BASE_URL='http://localhost:4000'
 APOS_RELEASE_ID='a4-boilerplate'
