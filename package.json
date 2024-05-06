@@ -1,6 +1,6 @@
 {
     "name": "@stepanjakl/apostrophe-stripe-products",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "description": "Stripe Products For ApostropheCMS",
     "keywords": [
         "apostrophe",

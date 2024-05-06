@@ -103,61 +103,80 @@ module.exports = {
       post: {
         // POST /api/v1/stripe-products/synchronize
         '/api/v1/stripe-products/synchronize': async function (req) {
+          // Check if the user is authorized as an editor or admin
           if (req.user && (req.user.role === 'editor' || req.user.role === 'admin')) {
             return self.apos.modules['@apostrophecms/job'].run(req, async (req, reporting) => {
-              // Set total for reporting based on the existing collection documents
+              // Set total number of documents to synchronize
               reporting.setTotal(Math.round(await self.apos.stripeProduct.find(req).toCount() / 4));
               const differenceResults = {};
               let startingAfterId;
 
               while (true) {
-                // Fetch products from Stripe
+                // Fetch products from Stripe with pagination
                 const productList = await stripe.products.list({
-                  active: true,
                   limit: 2,
                   starting_after: startingAfterId
                 });
 
+                let docToUpdate, updatedDraftDoc;
+
+                // Process each product fetched from Stripe
                 for (const product of productList?.data || []) {
+                  docToUpdate = null;
+
+                  // Convert UNIX timestamps to ISO format
                   product.created_timestamp = new Date(product.created * 1000).toISOString();
                   product.updated_timestamp = new Date(product.updated * 1000).toISOString();
 
-                  // Check if the document exists in the database
-                  const docsToUpdate = await self.apos.doc.db.find({ 'stripeProductObject.id': product.id }).toArray();
+                  // Retrieve price information if available
                   const price = product.default_price ? await stripe.prices.retrieve(product.default_price) : null;
 
                   if (product.default_price && price) {
+                    // Convert price from cents to dollars
                     price.unit_amount = (price.unit_amount / 100).toFixed(2);
                     price.created_timestamp = new Date(price.created * 1000).toISOString();
                   }
 
-                  if (docsToUpdate.length > 0) {
-                    for (const docToUpdate of docsToUpdate) {
-                      // Calculate differences in product and price objects
-                      const differenceProductObject = _.deepDiff(docToUpdate.stripeProductObject, product);
-                      const differencePriceObject = product.default_price ? _.deepDiff(docToUpdate.stripePriceObject, price) : null;
+                  // Check if the product exists in the database
+                  docToUpdate = await self.apos.stripeProduct.findOneForEditing(req.clone({
+                    mode: 'draft'
+                  }), {
+                    'stripeProductObject.id': product.id
+                  });
 
-                      // Update the document if differences are found
-                      if (!_.isEmpty(differenceProductObject) || !_.isEmpty(differencePriceObject)) {
-                        // Update the document with the new product and price objects
-                        await self.apos.doc.db.updateOne(
-                          { _id: docToUpdate._id },
-                          {
-                            $set: {
-                              stripeProductObject: product,
-                              stripePriceObject: price
-                            }
-                          },
-                          { upsert: true }
-                        );
+                  if (docToUpdate) {
+                    // Determine differences in product and price objects
+                    const differenceProductObject = _.deepDiff(docToUpdate.stripeProductObject, product);
+                    const differencePriceObject = product.default_price ? _.deepDiff(docToUpdate.stripePriceObject, price) : null;
 
-                        // Include 'difference' objects only if they are not empty
-                        if (!_.isEmpty(differenceProductObject)) {
-                          differenceResults[docToUpdate._id] = { stripeProductObject: { difference: differenceProductObject } };
-                        }
-                        if (!_.isEmpty(differencePriceObject)) {
-                          differenceResults[docToUpdate._id] = { stripePriceObject: { difference: differencePriceObject } };
-                        }
+                    // Update the document if differences are found
+                    if (!_.isEmpty(differenceProductObject) || !_.isEmpty(differencePriceObject)) {
+
+                      // Update the document with the new product and price objects
+                      /* await self.apos.doc.db.updateOne(
+                        { _id: docToUpdate._id },
+                        {
+                          $set: {
+                            stripeProductObject: product,
+                            stripePriceObject: price
+                          }
+                        },
+                        { upsert: true }
+                      ); */
+
+                      docToUpdate.stripeProductObject = product;
+                      docToUpdate.stripePriceObject = price;
+
+                      /* updatedDraftDoc = await self.apos.stripeProduct.update(req.clone({
+                        mode: 'draft'
+                      }), docToUpdate); */
+
+                      // Include 'difference' objects only if they are not empty
+                      if (!_.isEmpty(differenceProductObject)) {
+                        differenceResults[docToUpdate._id] = { stripeProductObject: { difference: differenceProductObject } };
+                      }
+                      if (!_.isEmpty(differencePriceObject)) {
+                        differenceResults[docToUpdate._id] = { stripePriceObject: { difference: differencePriceObject } };
                       }
                     }
                   } else {
@@ -169,6 +188,21 @@ module.exports = {
                     stripeProductInstance.stripePriceObject = product.default_price ? price : null;
 
                     await self.apos.stripeProduct.insert(req, stripeProductInstance);
+
+                    docToUpdate = await self.apos.stripeProduct.findOneForEditing(req.clone({
+                      mode: 'draft'
+                    }), {
+                      'stripeProductObject.id': product.id
+                    });
+                  }
+
+                  // Set archived status based on product's active status
+                  if (product.active) {
+                    docToUpdate.archived = false;
+                    updatedDraftDoc = await self.apos.stripeProduct.update(req, docToUpdate);
+                  } else {
+                    docToUpdate.archived = true;
+                    updatedDraftDoc = await self.apos.stripeProduct.update(req, docToUpdate);
                   }
                 }
 
