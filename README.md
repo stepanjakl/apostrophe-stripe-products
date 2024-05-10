@@ -23,7 +23,7 @@
         <a aria-label="Unit Tests"
            href="https://github.com/stepanjakl/apostrophe-stripe-products/actions/workflows/tests.yml">
             <img alt="Unit Tests"
-                 src="https://github.com/stepanjakl/apostrophe-stripe-products/actions/workflows/tests.yml/badge.svg?branch=main)">
+                 src="https://github.com/stepanjakl/apostrophe-stripe-products/actions/workflows/tests.yml/badge.svg?branch=main">
         </a>
     </p>
 </div>

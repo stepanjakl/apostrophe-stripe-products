@@ -35,9 +35,9 @@
         "eslint-plugin-node": "^11.1.0",
         "eslint-plugin-promise": "^6.1.1",
         "eslint-plugin-vue": "^9.26.0",
-        "mocha": "^10.4.0",
+        "mocha": "^10.x.x",
         "read-only-field": "npm:@stepanjakl/apostrophe-read-only-field@latest",
-        "stripe": "^15.6.0",
+        "stripe": "^15.x.x",
         "stylelint": "^15.x.x",
         "stylelint-config-apostrophe": "^3.0.2"
     },
