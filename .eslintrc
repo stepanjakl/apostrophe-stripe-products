@@ -6,5 +6,8 @@
     ],
     "globals": {
         "apos": true
+    },
+    "rules": {
+        "max-len": "off"
     }
 }

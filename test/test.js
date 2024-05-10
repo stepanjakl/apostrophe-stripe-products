@@ -6,6 +6,7 @@ process.env.STRIPE_TEST_MODE = 'true';
 
 describe('Apostrophe - Stripe Products Integration Tests', function () {
   let apos;
+  let jar;
 
   this.timeout(t.timeout);
 
@@ -17,6 +18,16 @@ describe('Apostrophe - Stripe Products Integration Tests', function () {
     apos = await t.create({
       baseUrl: 'http://localhost:7770',
       modules: {
+        '@apostrophecms/page': {
+          options: {
+            types: [
+              {
+                name: '@apostrophecms/home-page',
+                label: 'Home'
+              }
+            ]
+          }
+        },
         'read-only-field': {},
         'stripe-products': {},
         'stripe-products/product': {}
@@ -33,44 +44,62 @@ describe('Apostrophe - Stripe Products Integration Tests', function () {
     assert(apos.stripeProduct);
   });
 
-  /* it('should create a test checkout session and return a valid URL', async function () {
+  it('should be able to insert a test admin user', async function() {
+    assert(apos.user.newInstance);
+    const user = apos.user.newInstance();
+    assert(user);
+
+    user.title = 'admin';
+    user.username = 'admin';
+    user.password = 'admin';
+    user.email = 'ad@min.com';
+    user.role = 'admin';
+
+    await apos.user.insert(apos.task.getReq(), user);
+  });
+
+  it('should log in as admin and make a GET request to establish CSRF cookie', async function() {
+    jar = apos.http.jar();
+
+    let page = await apos.http.get('/', { jar });
+
+    assert(page.match(/logged out/));
+
+    await apos.http.post('/api/v1/@apostrophecms/login/login', {
+      body: {
+        username: 'admin',
+        password: 'admin',
+        session: true
+      },
+      jar
+    });
+
+    page = await apos.http.get('/', { jar });
+
+    assert(page.match(/logged in/));
+  });
+
+  it('should synchronize products and save them to the database', async function () {
     let response;
 
     try {
-      response = await apos.http.post('/api/v1/stripe/checkout/sessions/create', {
+      response = await apos.http.post('/api/v1/stripe-products/synchronize', {
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json'
         },
-        body: {
-          line_items: [
-            {
-              price: 'price_test_abc',
-              quantity: 2
-            },
-            {
-              price: 'price_test_xyz',
-              quantity: 1
-            }
-          ],
-          success_url: apos.baseUrl,
-          cancel_url: apos.baseUrl
-        }
+        jar
       });
     } catch (error) {
       console.error('An error occurred:', error);
       throw error;
     }
 
-    function isURL(string) {
-      const urlRegex = /^(https?|ftp):\/\/[^\s/$.?#].[^\s]*$/i;
-      return urlRegex.test(string);
-    }
-
-    assert.strictEqual(isURL(response), true);
+    assert.strictEqual(Object.keys(response.job)[0] === 'jobId', true);
+    assert.strictEqual(response.productList.length > 0, true);
   });
 
-  it('should send request to webhook endpoint and save the completed checkout session to the database', async function () {
+  /* it('should send request to webhook endpoint and save the completed checkout session to the database', async function () {
 
     await apos.http.post('/api/v1/stripe/checkout/webhook', {
       headers: {

@@ -64,7 +64,19 @@ function deepDiff(fromObject, toObject) {
 _.mixin({ deepDiff });
 
 const Stripe = require('stripe');
-const stripe = Stripe(process.env.STRIPE_KEY);
+let stripe = null;
+
+if (process.env.STRIPE_TEST_MODE === 'false') {
+  // Using Stripe production mode settings with the API key
+  stripe = Stripe(process.env.STRIPE_KEY);
+} else {
+  // Using Stripe test mode settings
+  stripe = new Stripe('sk_test_xyz', {
+    host: 'localhost',
+    protocol: 'http',
+    port: 12111
+  });
+}
 
 module.exports = {
   options: {
@@ -79,6 +91,8 @@ module.exports = {
     modules: getBundleModuleNames()
   },
   init(self) {
+    // self.options.stripeKey = process.env.STRIPE_KEY || self.options.stripeKey;
+
     const groupName = 'stripe';
     const itemsToAdd = [ 'stripe-products/product' ];
 
@@ -105,40 +119,50 @@ module.exports = {
         '/api/v1/stripe-products/synchronize': async function (req) {
           // Check if the user is authorized as an editor or admin
           if (req.user && (req.user.role === 'editor' || req.user.role === 'admin')) {
-            return self.apos.modules['@apostrophecms/job'].run(req, async (req, reporting) => {
+            let jobReporting;
+
+            // Run a job using Apostrophe's job module
+            const job = await self.apos.modules['@apostrophecms/job'].run(req, async (req, reporting, info) => {
+              jobReporting = reporting;
+
               // Set total number of documents to synchronize
-              reporting.setTotal(Math.round(await self.apos.stripeProduct.find(req).toCount() / 4));
-              const differenceResults = {};
-              let startingAfterId;
+              await reporting.setTotal(Math.round(await self.apos.stripeProduct.find(req).toCount() / 4));
+            });
 
-              while (true) {
-                // Fetch products from Stripe with pagination
-                const productList = await stripe.products.list({
-                  limit: 2,
-                  starting_after: startingAfterId
-                });
+            // Object to store differences between documents
+            const differenceResults = {};
+            let productList = [];
+            let startingAfterId;
 
-                let docToUpdate, updatedDraftDoc;
+            // Continuous loop for pagination
+            while (true) {
+              // Fetch products from Stripe with pagination
+              const products = await stripe.products.list({
+                limit: 2,
+                starting_after: startingAfterId
+              });
 
-                // Process each product fetched from Stripe
-                for (const product of productList?.data || []) {
-                  docToUpdate = null;
+              productList = [ ...productList, ...products.data ];
 
+              // Process each product fetched from Stripe
+              for (const product of products?.data || []) {
+                // Wrap each iteration in a promise to ensure that all operations complete before moving to the next iteration
+                try {
                   // Convert UNIX timestamps to ISO format
                   product.created_timestamp = new Date(product.created * 1000).toISOString();
                   product.updated_timestamp = new Date(product.updated * 1000).toISOString();
 
                   // Retrieve price information if available
-                  const price = product.default_price ? await stripe.prices.retrieve(product.default_price) : null;
-
-                  if (product.default_price && price) {
+                  let price = null;
+                  if (product.default_price) {
+                    price = await stripe.prices.retrieve(product.default_price);
                     // Convert price from cents to dollars
                     price.unit_amount = (price.unit_amount / 100).toFixed(2);
                     price.created_timestamp = new Date(price.created * 1000).toISOString();
                   }
 
                   // Check if the product exists in the database
-                  docToUpdate = await self.apos.stripeProduct.findOneForEditing(req.clone({
+                  const docToUpdate = await self.apos.stripeProduct.findOneForEditing(req.clone({
                     mode: 'draft'
                   }), {
                     'stripeProductObject.id': product.id
@@ -151,33 +175,28 @@ module.exports = {
 
                     // Update the document if differences are found
                     if (!_.isEmpty(differenceProductObject) || !_.isEmpty(differencePriceObject)) {
-
-                      // Update the document with the new product and price objects
-                      /* await self.apos.doc.db.updateOne(
-                        { _id: docToUpdate._id },
-                        {
-                          $set: {
-                            stripeProductObject: product,
-                            stripePriceObject: price
-                          }
-                        },
-                        { upsert: true }
-                      ); */
-
                       docToUpdate.stripeProductObject = product;
                       docToUpdate.stripePriceObject = price;
 
-                      /* updatedDraftDoc = await self.apos.stripeProduct.update(req.clone({
-                        mode: 'draft'
-                      }), docToUpdate); */
-
                       // Include 'difference' objects only if they are not empty
                       if (!_.isEmpty(differenceProductObject)) {
-                        differenceResults[docToUpdate._id] = { stripeProductObject: { difference: differenceProductObject } };
+                        differenceResults[docToUpdate._id] = {
+                          stripeProductObject: {
+                            difference: differenceProductObject
+                          }
+                        };
                       }
                       if (!_.isEmpty(differencePriceObject)) {
-                        differenceResults[docToUpdate._id] = { stripePriceObject: { difference: differencePriceObject } };
+                        differenceResults[docToUpdate._id] = {
+                          stripePriceObject: {
+                            difference: differencePriceObject
+                          }
+                        };
                       }
+
+                      // Set archived status based on product's active status
+                      docToUpdate.archived = !product.active;
+                      await self.apos.stripeProduct.update(req, docToUpdate);
                     }
                   } else {
                     // Insert a new document if it doesn't exist
@@ -188,36 +207,29 @@ module.exports = {
                     stripeProductInstance.stripePriceObject = product.default_price ? price : null;
 
                     await self.apos.stripeProduct.insert(req, stripeProductInstance);
-
-                    docToUpdate = await self.apos.stripeProduct.findOneForEditing(req.clone({
-                      mode: 'draft'
-                    }), {
-                      'stripeProductObject.id': product.id
-                    });
                   }
-
-                  // Set archived status based on product's active status
-                  if (product.active) {
-                    docToUpdate.archived = false;
-                    updatedDraftDoc = await self.apos.stripeProduct.update(req, docToUpdate);
-                  } else {
-                    docToUpdate.archived = true;
-                    updatedDraftDoc = await self.apos.stripeProduct.update(req, docToUpdate);
-                  }
-                }
-
-                // Update startingAfterId for the next request
-                startingAfterId = productList.data.length > 0 ? productList.data[productList.data.length - 1].id : undefined;
-
-                // Check if there are more products to fetch
-                if (!productList.has_more) {
-                  // Finalize the job and pass doc changes to the results field
-                  reporting.setResults(differenceResults);
-                  reporting.success();
-                  break;
+                } catch (error) {
+                  console.error('Error occurred while processing product:', error); // Log the error
                 }
               }
-            });
+
+              // Update startingAfterId for the next request
+              startingAfterId = products.data.length > 0 ? products.data[products.data.length - 1].id : undefined;
+
+              // Check if there are more products to fetch
+              if (!products.has_more) {
+                // Finalize the job and pass doc changes to the results field
+                jobReporting.setResults(differenceResults);
+                jobReporting.success();
+
+                // Return job information, product list, and difference results
+                return {
+                  job,
+                  productList,
+                  differenceResults
+                };
+              }
+            }
           }
         }
       }

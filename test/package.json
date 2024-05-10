@@ -1,0 +1,6 @@
+{
+    "dependencies": {
+        "apostrophe": "4.*.*",
+        "read-only-field": "npm:@stepanjakl/apostrophe-read-only-field@latest"
+    }
+}
