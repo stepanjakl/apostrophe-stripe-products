@@ -79,6 +79,23 @@ describe('Apostrophe - Stripe Products Integration Tests', function () {
     assert(page.match(/logged in/));
   });
 
+  it('should connect to Stripe API', async function() {
+    const Stripe = require('stripe');
+    const stripe = new Stripe('sk_test_xyz', {
+      host: 'localhost',
+      protocol: 'http',
+      port: 12111
+    });
+
+    try {
+      const paymentMethods = await stripe.paymentMethods.list({ limit: 1 });
+      assert.strictEqual(paymentMethods.data.length > 0, true);
+    } catch (error) {
+      console.error('Error connecting to Stripe API:', error);
+      throw error;
+    }
+  });
+
   it('should synchronize products and save them to the database', async function () {
     let response;
 
@@ -107,8 +124,7 @@ describe('Apostrophe - Stripe Products Integration Tests', function () {
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json'
-        },
-        jar
+        }
       });
     } catch (error) {
       console.error('An error occurred:', error);
