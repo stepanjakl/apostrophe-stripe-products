@@ -82,9 +82,11 @@ describe('Apostrophe - Stripe Products Integration Tests', function () {
   it('should connect to Stripe API', async function() {
     const Stripe = require('stripe');
     const stripe = new Stripe('sk_test_xyz', {
-      host: 'localhost',
+      host: '127.0.0.1',
       protocol: 'http',
-      port: 12111
+      port: 12111,
+      maxNetworkRetries: 3,
+      timeout: 10 * 1000
     });
 
     try {
@@ -92,6 +94,9 @@ describe('Apostrophe - Stripe Products Integration Tests', function () {
       assert.strictEqual(paymentMethods.data.length > 0, true);
     } catch (error) {
       console.error('Error connecting to Stripe API:', error);
+      if (error.detail?.errors?.length > 0) {
+        console.error('Error detail:', ...error.detail.errors);
+      }
       throw error;
     }
   });

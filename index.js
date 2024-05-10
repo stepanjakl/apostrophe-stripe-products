@@ -72,7 +72,7 @@ if (process.env.STRIPE_TEST_MODE === 'false') {
 } else {
   // Using Stripe test mode settings
   stripe = new Stripe('sk_test_xyz', {
-    host: 'localhost',
+    host: '127.0.0.1',
     protocol: 'http',
     port: 12111
   });

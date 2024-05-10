@@ -109,3 +109,4 @@ The `stripe-products` module contains a custom API route (`'/api/v1/stripe-produ
 ## TODOs (Limitations)
 
 - fix disappering `stripeProductObject` and `stripePriceObject` data when moved between `draft` and `published` modes and vice versa
+- mention stripe-mock in the `README`
