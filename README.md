@@ -18,6 +18,13 @@
             <img alt="License"
                  src="https://img.shields.io/static/v1?style=for-the-badge&labelColor=000000&label=License&message=MIT&color=3DA639">
         </a>
+        <br>
+        <br>
+        <a aria-label="Unit Tests"
+           href="https://github.com/stepanjakl/apostrophe-stripe-products/actions/workflows/tests.yml">
+            <img alt="Unit Tests"
+                 src="https://github.com/stepanjakl/apostrophe-stripe-products/actions/workflows/tests.yml/badge.svg?branch=main)">
+        </a>
     </p>
 </div>
 

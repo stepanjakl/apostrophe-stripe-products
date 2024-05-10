@@ -1,0 +1,31 @@
+name: lint-and-test
+run-name: lint and test
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["*"]
+
+jobs:
+  lint-and-test:
+    name: Lint and Test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Install Dependencies
+      run: npm install
+
+    - name: Run ESLint
+      run: npm run eslint
+
+    - name: Run Mocha Tests
+      run: npm run mocha
