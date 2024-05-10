@@ -52,13 +52,13 @@ describe('Apostrophe - Stripe Products Integration Tests', function () {
     user.title = 'admin';
     user.username = 'admin';
     user.password = 'admin';
-    user.email = 'ad@min.com';
+    user.email = 'admin@example.com';
     user.role = 'admin';
 
     await apos.user.insert(apos.task.getReq(), user);
   });
 
-  it('should log in as admin and make a GET request to establish CSRF cookie', async function() {
+  it('should log in as admin and establish a CSRF cookie with a GET request', async function() {
     jar = apos.http.jar();
 
     let page = await apos.http.get('/', { jar });
@@ -99,26 +99,22 @@ describe('Apostrophe - Stripe Products Integration Tests', function () {
     assert.strictEqual(response.productList.length > 0, true);
   });
 
-  /* it('should send request to webhook endpoint and save the completed checkout session to the database', async function () {
+  it('should retrieve products via REST API using a GET request', async function () {
+    let response;
 
-    await apos.http.post('/api/v1/stripe/checkout/webhook', {
-      headers: {
-        'stripe-signature': 't=1711059559,v1=9dd216ac7ffc2d07d3edd4b4de4a67200705c52f435e92bc3b21a605f3af91af,v0=4251a0f2bbd73dd1622bb01aedb334cab148be2a84bb3b1daea4af931e0172e2'
-      },
-      body: {
-        id: 'evt_xyz',
-        object: 'event'
-      }
-    }).catch(error => {
+    try {
+      response = await apos.http.get('/api/v1/stripe-products/product', {
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json'
+        },
+        jar
+      });
+    } catch (error) {
       console.error('An error occurred:', error);
       throw error;
-    });
+    }
 
-    const sessionDoc = await apos.stripeCheckoutSession.find(apos.task.getReq(), {
-      slug: 'cs_xyz',
-      aposMode: 'published'
-    }).toObject();
-
-    assert(sessionDoc);
-  }); */
+    assert.strictEqual(response.results.length > 0, true);
+  });
 });

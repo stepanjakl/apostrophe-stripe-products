@@ -101,5 +101,4 @@ The `stripe-products` module contains a custom API route (`'/api/v1/stripe-produ
 
 ## TODOs (Limitations)
 
-- add tests
-- archive products when they are not included in the API request payload
+- fix disappering `stripeProductObject` and `stripePriceObject` data when moved between `draft` and `published` modes and vice versa

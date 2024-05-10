@@ -1,6 +1,6 @@
 {
     "name": "@stepanjakl/apostrophe-stripe-products",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "description": "Stripe Products For ApostropheCMS",
     "keywords": [
         "apostrophe",
@@ -34,10 +34,10 @@
         "eslint-plugin-mocha": "^10.4.3",
         "eslint-plugin-node": "^11.1.0",
         "eslint-plugin-promise": "^6.1.1",
-        "eslint-plugin-vue": "^9.25.0",
+        "eslint-plugin-vue": "^9.26.0",
         "mocha": "^10.4.0",
         "read-only-field": "npm:@stepanjakl/apostrophe-read-only-field@latest",
-        "stripe": "^15.3.0",
+        "stripe": "^15.6.0",
         "stylelint": "^15.x.x",
         "stylelint-config-apostrophe": "^3.0.2"
     },

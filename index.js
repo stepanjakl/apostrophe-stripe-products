@@ -196,6 +196,9 @@ module.exports = {
 
                       // Set archived status based on product's active status
                       docToUpdate.archived = !product.active;
+
+                      docToUpdate.updatedAt = new Date();
+
                       await self.apos.stripeProduct.update(req, docToUpdate);
                     }
                   } else {
