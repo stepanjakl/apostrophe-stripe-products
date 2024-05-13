@@ -49,7 +49,7 @@ This module adds a piece module and utility operation to automatically synchroni
 
 ## Installation
 
-Use your preferred package manager to install the module. You'll also need to install the [read-only-field](https://github.com/stepanjakl/apostrophe-read-only-field) package alongside it:
+Use your preferred package manager to install the module. You'll also need to install the [`read-only-field`](https://github.com/stepanjakl/apostrophe-read-only-field) package alongside it:
 
 ```zsh
 npm install stripe-products@npm:@stepanjakl/apostrophe-stripe-products
@@ -61,7 +61,7 @@ npm install read-only-field@npm:@stepanjakl/apostrophe-read-only-field
 
 ## Examples
 
-It is highly recommended to explore the [apostrophe-stripe-examples](https://github.com/stepanjakl/apostrophe-stripe-examples) repository, which offers a comprehensive set of examples and full configurations demonstrating how to set up a complete e-commerce store experience.
+It is highly recommended to explore the [`apostrophe-stripe-examples`](https://github.com/stepanjakl/apostrophe-stripe-examples) repository, which offers a comprehensive set of examples and full configurations demonstrating how to set up a complete e-commerce store experience.
 
 <br>
 
@@ -106,7 +106,22 @@ The `stripe-products` module contains a custom API route (`'/api/v1/stripe-produ
 
 <br>
 
+## Unit Tests
+
+To run tests locally, you'll need to set up the [`stripe/stripe-mock`](https://github.com/stripe/stripe-mock) package:
+
+```zsh
+brew install stripe/stripe-mock/stripe-mock
+
+brew services start stripe-mock
+```
+
+<br>
+
+Once set up, run tests using `npm run tests` to validate any changes before deploying them.
+
+<br>
+
 ## TODOs (Limitations)
 
 - fix disappering `stripeProductObject` and `stripePriceObject` data when moved between `draft` and `published` modes and vice versa
-- mention stripe-mock in the `README`

@@ -44,7 +44,7 @@ jobs:
       run: pm2 start --name stripe-mock stripe-mock -- -http-addr 127.0.0.1:12111 -https-addr 127.0.0.1:12112
 
     - name: Display active connections
-      run: netstat -tuln
+      run: sleep 5 && netstat -tuln
 
     - name: Run ESLint
       run: npm run eslint

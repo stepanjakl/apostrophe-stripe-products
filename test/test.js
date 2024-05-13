@@ -36,18 +36,18 @@ describe('Apostrophe - Stripe Products Integration Tests', function () {
   });
 
   it('should properly instantiate the read-only field module', function () {
-    assert(apos.readOnlyField);
+    assert(apos.readOnlyField, 'ReadOnlyField module should be properly instantiated');
   });
 
   it('should properly instantiate the products and product piece type modules', function () {
-    assert(apos.stripeProducts);
-    assert(apos.stripeProduct);
+    assert(apos.stripeProducts, 'Stripe Products module should be properly instantiated');
+    assert(apos.stripeProduct, 'Stripe Product piece type module should be properly instantiated');
   });
 
   it('should be able to insert a test admin user', async function() {
-    assert(apos.user.newInstance);
+    assert(apos.user.newInstance, 'New instance of User should be available');
     const user = apos.user.newInstance();
-    assert(user);
+    assert(user, 'User instance should be created successfully');
 
     user.title = 'admin';
     user.username = 'admin';
@@ -56,6 +56,12 @@ describe('Apostrophe - Stripe Products Integration Tests', function () {
     user.role = 'admin';
 
     await apos.user.insert(apos.task.getReq(), user);
+
+    const insertedUser = await apos.user.find(apos.task.getReq(), { username: 'admin' }).toObject();
+    assert(insertedUser, 'Admin user should be inserted successfully');
+    assert.strictEqual(insertedUser.username, 'admin', 'Username of inserted user should match');
+    assert.strictEqual(insertedUser.email, 'admin@example.com', 'Email of inserted user should match');
+    assert.strictEqual(insertedUser.role, 'admin', 'Role of inserted user should be admin');
   });
 
   it('should log in as admin and establish a CSRF cookie with a GET request', async function() {
@@ -63,7 +69,7 @@ describe('Apostrophe - Stripe Products Integration Tests', function () {
 
     let page = await apos.http.get('/', { jar });
 
-    assert(page.match(/logged out/));
+    assert(page.match(/logged out/), 'Should detect that the user is logged out');
 
     await apos.http.post('/api/v1/@apostrophecms/login/login', {
       body: {
@@ -76,7 +82,7 @@ describe('Apostrophe - Stripe Products Integration Tests', function () {
 
     page = await apos.http.get('/', { jar });
 
-    assert(page.match(/logged in/));
+    assert(page.match(/logged in/), 'Should detect that the user is logged in');
   });
 
   it('should connect to Stripe API', async function() {
@@ -91,7 +97,7 @@ describe('Apostrophe - Stripe Products Integration Tests', function () {
 
     try {
       const paymentMethods = await stripe.paymentMethods.list({ limit: 1 });
-      assert.strictEqual(paymentMethods.data.length > 0, true);
+      assert.strictEqual(paymentMethods.data.length > 0, true, 'Should connect to Stripe API successfully');
     } catch (error) {
       console.error('Error connecting to Stripe API:', error);
       if (error.detail?.errors?.length > 0) {
@@ -117,8 +123,28 @@ describe('Apostrophe - Stripe Products Integration Tests', function () {
       throw error;
     }
 
-    assert.strictEqual(Object.keys(response.job)[0] === 'jobId', true);
-    assert.strictEqual(response.productList.length > 0, true);
+    assert.strictEqual(Object.keys(response.job)[0] === 'jobId', true, 'Job ID should exist in the response');
+    assert.strictEqual(response.productList.length > 0, true, 'Product list should not be empty in the response');
+  });
+
+  it('should retrieve both draft and published version of the product from the database', async function () {
+    const assert = require('assert');
+
+    const products = await apos.doc.db.find({ type: /product/i }).toArray();
+
+    let hasDraft = false;
+    let hasPublished = false;
+
+    products.forEach(product => {
+      if (product._id.includes(':draft')) {
+        hasDraft = true;
+      } else if (product._id.includes(':published')) {
+        hasPublished = true;
+      }
+    });
+
+    assert.strictEqual(hasDraft, true, 'At least one draft product should exist');
+    assert.strictEqual(hasPublished, true, 'At least one published product should exist');
   });
 
   it('should retrieve products via REST API using a GET request', async function () {
@@ -136,6 +162,6 @@ describe('Apostrophe - Stripe Products Integration Tests', function () {
       throw error;
     }
 
-    assert.strictEqual(response.results.length > 0, true);
+    assert.strictEqual(response.results.length > 0, true, 'At least one product should be retrieved via REST API');
   });
 });
