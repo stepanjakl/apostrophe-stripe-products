@@ -66,16 +66,16 @@ _.mixin({ deepDiff });
 const Stripe = require('stripe');
 let stripe = null;
 
-if (process.env.STRIPE_TEST_MODE === 'false') {
-  // Using Stripe production mode settings with the API key
-  stripe = Stripe(process.env.STRIPE_KEY);
-} else {
-  // Using Stripe test mode settings
+if (process.env.STRIPE_MOCK_TEST_MODE === 'true') {
+  // Using Stripe mock test mode settings
   stripe = new Stripe('sk_test_xyz', {
     host: '127.0.0.1',
     protocol: 'http',
     port: 12111
   });
+} else {
+  // Using Stripe production mode settings with the API key
+  stripe = Stripe(process.env.STRIPE_KEY);
 }
 
 module.exports = {
@@ -208,6 +208,8 @@ module.exports = {
                     stripeProductInstance.slug = self.apos.util.slugify(product.name);
                     stripeProductInstance.stripeProductObject = product;
                     stripeProductInstance.stripePriceObject = product.default_price ? price : null;
+
+                    stripeProductInstance.archived = !product.active;
 
                     await self.apos.stripeProduct.insert(req, stripeProductInstance);
                   }

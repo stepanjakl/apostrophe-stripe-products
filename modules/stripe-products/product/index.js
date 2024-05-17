@@ -10,6 +10,7 @@ module.exports = {
     publicApiProjection: {
       'stripeProductObject.id': 1,
       'stripeProductObject.name': 1,
+      'stripeProductObject.description': 1,
       'stripeProductObject.type': 1,
       'stripeProductObject.images': 1,
 

@@ -100,6 +100,37 @@ STRIPE_DASHBOARD_BASE_URL='https://dashboard.stripe.com'
 
 <br>
 
+## Recommended use
+
+This module is utilized to primarily mirror datasets fetched from the connected Stripe account. To enhance the front-end with additional custom data, it is recommended to create a separate piece type and link it to the Stripe product piece using a `relationship` schema field type. This enables the addition of extra schema fields for images, supporting documents, and other necessary data while keeping it decoupled from Stripe's data, which may change during synchronization.
+
+```js
+module.exports = {
+  extend: 'apostrophe-pieces',
+  name: 'product',
+  fields: {
+    add: {
+      _stripeProduct: {
+        label: 'Stripe Product',
+        type: 'relationship',
+        withType: 'stripe-products/product',
+        max: 1
+      },
+      _images: {
+        label: 'Images',
+        type: 'relationship',
+        withType: '@apostrophecms/image'
+      },
+      _documents: {
+        label: 'Documents',
+        type: 'relationship',
+        withType: '@apostrophecms/file'
+      }
+    }
+  }
+}
+```
+
 ## API Routes
 
 The `stripe-products` module contains a custom API route (`'/api/v1/stripe-products/synchronize'`) triggered by the `Synchronize Products` utility operation. It is executed through the `'@apostrophecms/job'` module. Once the job is completed, it saves the difference between the existing and received data to the results object in the `aposJobs` collection document.
@@ -125,3 +156,4 @@ Once set up, run tests using `npm run tests` to validate any changes before depl
 ## TODOs (Limitations)
 
 - fix disappering `stripeProductObject` and `stripePriceObject` data when moved between `draft` and `published` modes and vice versa
+- two-way synchronization between ApostropheCMS and Stripe
