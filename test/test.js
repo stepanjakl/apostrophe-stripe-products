@@ -2,7 +2,7 @@ const assert = require('assert');
 const t = require('apostrophe/test-lib/test');
 
 process.env.STRIPE_WEBHOOK_ENDPOINT_SECRET = 'whsec_xyz';
-process.env.STRIPE_TEST_MODE = 'true';
+process.env.STRIPE_MOCK_TEST_MODE = 'true';
 
 describe('Apostrophe - Stripe Products Integration Tests', function () {
   let apos;
