@@ -5,9 +5,6 @@ const _ = require('lodash');
 /**
  * Deep diff between two object-likes
  * https://gist.github.com/Yimiprod/7ee176597fef230d1451?permalink_comment_id=4757803#gistcomment-4757803
- * @param  {Object} fromObject the original object
- * @param  {Object} toObject   the updated object
- * @return {Object}            a new object which represents the difference
  */
 function deepDiff(fromObject, toObject) {
   const changes = {};
@@ -67,14 +64,12 @@ const Stripe = require('stripe');
 let stripe = null;
 
 if (process.env.STRIPE_MOCK_TEST_MODE === 'true') {
-  // Using Stripe mock test mode settings
   stripe = new Stripe('sk_test_xyz', {
     host: '127.0.0.1',
     protocol: 'http',
     port: 12111
   });
 } else {
-  // Using Stripe production mode settings with the API key
   stripe = Stripe(process.env.STRIPE_KEY);
 }
 
@@ -91,12 +86,11 @@ module.exports = {
     modules: getBundleModuleNames()
   },
   init(self) {
-    // self.options.stripeKey = process.env.STRIPE_KEY || self.options.stripeKey;
+    /* TODO self.options.stripeKey = process.env.STRIPE_KEY || self.options.stripeKey; */
 
     const groupName = 'stripe';
     const itemsToAdd = [ 'stripe-products/product' ];
 
-    // Check if 'stripe' already exists in self.apos.adminBar.groups
     const existingStripeGroup = self.apos.adminBar.groups.find(group => group.name === groupName);
 
     const newStripeGroup = {
@@ -105,7 +99,6 @@ module.exports = {
       items: itemsToAdd
     };
 
-    // If 'stripe' exists, add items to the existing one; otherwise, create a new group
     if (existingStripeGroup) {
       existingStripeGroup.items = existingStripeGroup.items.concat(itemsToAdd);
     } else {
@@ -117,124 +110,174 @@ module.exports = {
       post: {
         // POST /api/v1/stripe-products/synchronize
         '/api/v1/stripe-products/synchronize': async function (req) {
-          // Check if the user is authorized as an editor or admin
-          if (req.user && (req.user.role === 'editor' || req.user.role === 'admin')) {
-            let jobReporting;
+          class ReportingHandler {
+            constructor(reporting) {
+              this.reporting = reporting;
+              this.differenceResults = {};
+            }
 
-            // Run a job using Apostrophe's job module
-            const job = await self.apos.modules['@apostrophecms/job'].run(req, async (req, reporting, info) => {
-              jobReporting = reporting;
+            recordDifferences(docToUpdate, product, price) {
+              const differenceProductObject = _.deepDiff(docToUpdate.stripeProductObject, product);
+              const differencePriceObject = product.default_price ? _.deepDiff(docToUpdate.stripePriceObject, price) : null;
 
-              // Set total number of documents to synchronize
-              await reporting.setTotal(Math.round(await self.apos.stripeProduct.find(req).toCount() / 4));
-            });
-
-            // Object to store differences between documents
-            const differenceResults = {};
-            let productList = [];
-            let startingAfterId;
-
-            // Continuous loop for pagination
-            while (true) {
-              // Fetch products from Stripe with pagination
-              const products = await stripe.products.list({
-                limit: 2,
-                starting_after: startingAfterId
-              });
-
-              productList = [ ...productList, ...products.data ];
-
-              // Process each product fetched from Stripe
-              for (const product of products?.data || []) {
-                // Wrap each iteration in a promise to ensure that all operations complete before moving to the next iteration
-                try {
-                  // Convert UNIX timestamps to ISO format
-                  product.created_timestamp = new Date(product.created * 1000).toISOString();
-                  product.updated_timestamp = new Date(product.updated * 1000).toISOString();
-
-                  // Retrieve price information if available
-                  let price = null;
-                  if (product.default_price) {
-                    price = await stripe.prices.retrieve(product.default_price);
-                    // Convert price from cents to dollars
-                    price.unit_amount = (price.unit_amount / 100).toFixed(2);
-                    price.created_timestamp = new Date(price.created * 1000).toISOString();
+              if (!_.isEmpty(differenceProductObject)) {
+                this.differenceResults[docToUpdate._id] = {
+                  stripeProductObject: {
+                    difference: differenceProductObject
                   }
-
-                  // Check if the product exists in the database
-                  const docToUpdate = await self.apos.stripeProduct.findOneForEditing(req.clone({
-                    mode: 'draft'
-                  }), {
-                    'stripeProductObject.id': product.id
-                  });
-
-                  if (docToUpdate) {
-                    // Determine differences in product and price objects
-                    const differenceProductObject = _.deepDiff(docToUpdate.stripeProductObject, product);
-                    const differencePriceObject = product.default_price ? _.deepDiff(docToUpdate.stripePriceObject, price) : null;
-
-                    // Update the document if differences are found
-                    if (!_.isEmpty(differenceProductObject) || !_.isEmpty(differencePriceObject)) {
-                      docToUpdate.stripeProductObject = product;
-                      docToUpdate.stripePriceObject = price;
-
-                      // Include 'difference' objects only if they are not empty
-                      if (!_.isEmpty(differenceProductObject)) {
-                        differenceResults[docToUpdate._id] = {
-                          stripeProductObject: {
-                            difference: differenceProductObject
-                          }
-                        };
-                      }
-                      if (!_.isEmpty(differencePriceObject)) {
-                        differenceResults[docToUpdate._id] = {
-                          stripePriceObject: {
-                            difference: differencePriceObject
-                          }
-                        };
-                      }
-
-                      // Set archived status based on product's active status
-                      docToUpdate.archived = !product.active;
-
-                      docToUpdate.updatedAt = new Date();
-
-                      await self.apos.stripeProduct.update(req, docToUpdate);
-                    }
-                  } else {
-                    // Insert a new document if it doesn't exist
-                    const stripeProductInstance = self.apos.stripeProduct.newInstance();
-                    stripeProductInstance.title = product.name;
-                    stripeProductInstance.slug = self.apos.util.slugify(product.name);
-                    stripeProductInstance.stripeProductObject = product;
-                    stripeProductInstance.stripePriceObject = product.default_price ? price : null;
-
-                    stripeProductInstance.archived = !product.active;
-
-                    await self.apos.stripeProduct.insert(req, stripeProductInstance);
-                  }
-                } catch (error) {
-                  console.error('Error occurred while processing product:', error); // Log the error
-                }
-              }
-
-              // Update startingAfterId for the next request
-              startingAfterId = products.data.length > 0 ? products.data[products.data.length - 1].id : undefined;
-
-              // Check if there are more products to fetch
-              if (!products.has_more) {
-                // Finalize the job and pass doc changes to the results field
-                jobReporting.setResults(differenceResults);
-                jobReporting.success();
-
-                // Return job information, product list, and difference results
-                return {
-                  job,
-                  productList,
-                  differenceResults
                 };
               }
+              if (!_.isEmpty(differencePriceObject)) {
+                this.differenceResults[docToUpdate._id] = {
+                  stripePriceObject: {
+                    difference: differencePriceObject
+                  }
+                };
+              }
+
+              return {
+                differenceProductObject,
+                differencePriceObject
+              };
             }
+
+            setResults() {
+              this.reporting.setResults(this.differenceResults);
+            }
+
+            async setTotalDocuments(req) {
+              const totalDocs = await self.apos.stripeProduct.findForEditing(req.clone({ mode: 'draft' })).toCount();
+              await this.reporting.setTotal(Math.floor(totalDocs / 2));
+            }
+
+            success() {
+              this.reporting.success();
+            }
+          }
+
+          if (req.user && (req.user.role === 'editor' || req.user.role === 'admin')) {
+
+            /* TODO req.user && (req.user._permissions || {}) */
+
+            let jobResolve, reporting;
+            const jobPromise = new Promise((resolve, reject) => {
+              jobResolve = resolve;
+            });
+
+            const job = await self.apos.modules['@apostrophecms/job'].run(req, async (req, r) => {
+              reporting = r;
+              await jobPromise;
+            });
+
+            const reportingHandler = new ReportingHandler(reporting);
+
+            const getProductList = async (startingAfterId) => {
+              try {
+                return await stripe.products.list({
+                  limit: 2,
+                  starting_after: startingAfterId
+                });
+              } catch (error) {
+                console.error(`Stripe API error: ${error.message}`);
+                throw error;
+              }
+            };
+
+            const getPriceInfo = async (product) => {
+              if (product.default_price) {
+                try {
+                  const price = await stripe.prices.retrieve(product.default_price);
+                  price.unit_amount = (price.unit_amount / 100).toFixed(2);
+                  price.created_timestamp = new Date(price.created * 1000).toISOString();
+                  return price;
+                } catch (error) {
+                  console.error(`Stripe API error: ${error.message}`);
+                  throw error;
+                }
+              }
+              return null;
+            };
+
+            const findDocToUpdate = async (req, product) => {
+              return await self.apos.stripeProduct.findOneForEditing(req.clone({ mode: 'draft' }), {
+                'stripeProductObject.id': product.id
+              });
+            };
+
+            const updateDocument = async (req, docToUpdate, product, price) => {
+              docToUpdate.stripeProductObject = product;
+              docToUpdate.stripePriceObject = price;
+              docToUpdate.archived = !product.active;
+              docToUpdate.updatedAt = new Date();
+              docToUpdate.stripeProductObject.created_timestamp = new Date(product.created * 1000).toISOString();
+              docToUpdate.stripeProductObject.updated_timestamp = new Date(product.updated * 1000).toISOString();
+              await self.apos.stripeProduct.update(req, docToUpdate);
+
+              if (!docToUpdate.archived) {
+                await self.apos.stripeProduct.publish(req, docToUpdate);
+              }
+            };
+
+            const insertDocument = async (req, product, price) => {
+              const stripeProductInstance = self.apos.stripeProduct.newInstance();
+              stripeProductInstance.title = product.name;
+              stripeProductInstance.slug = self.apos.util.slugify(product.name);
+              stripeProductInstance.stripeProductObject = product;
+              stripeProductInstance.stripePriceObject = price;
+              stripeProductInstance.archived = !product.active;
+              stripeProductInstance.stripeProductObject.created_timestamp = new Date(product.created * 1000).toISOString();
+              stripeProductInstance.stripeProductObject.updated_timestamp = new Date(product.updated * 1000).toISOString();
+              await self.apos.stripeProduct.insert(req, stripeProductInstance);
+            };
+
+            const handlePaginationAndSync = async (req) => {
+              let productList = [];
+              let startingAfterId;
+
+              while (true) {
+                const products = await getProductList(startingAfterId);
+                productList = [ ...productList, ...products.data ];
+
+                for (const product of products?.data || []) {
+                  try {
+                    const price = await getPriceInfo(product);
+                    const docToUpdate = await findDocToUpdate(req, product);
+
+                    if (docToUpdate) {
+                      const {
+                        differenceProductObject,
+                        differencePriceObject
+                      } = reportingHandler.recordDifferences(docToUpdate, product, price);
+
+                      if (!_.isEmpty(differenceProductObject) || !_.isEmpty(differencePriceObject)) {
+                        await updateDocument(req, docToUpdate, product, price);
+                      }
+                    } else {
+                      await insertDocument(req, product, price);
+                    }
+                  } catch (error) {
+                    console.error('Error occurred while processing product:', product.id, error);
+                  }
+                }
+
+                startingAfterId = products.data.length > 0 ? products.data[products.data.length - 1].id : undefined;
+                reportingHandler.success();
+
+                if (!products.has_more) {
+                  reportingHandler.setResults();
+                  jobResolve();
+                  return {
+                    job,
+                    productList,
+                    differenceResults: reportingHandler.differenceResults
+                  };
+                }
+              }
+            };
+
+            await reportingHandler.setTotalDocuments(req);
+
+            return await handlePaginationAndSync(req);
           }
         }
       }

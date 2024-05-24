@@ -30,7 +30,7 @@
 
 <br>
 
-This module adds a piece module and utility operation to automatically synchronize Stripe Products with the database. Saved products can be easily accessed and viewed via the admin UI.
+This module adds a piece module and utility operation to automatically synchronize Stripe Products with the database. Saved products can be easily accessed and viewed via the admin UI alongside other piece methods and features, including the built-in REST API.
 
 <br>
 
@@ -133,7 +133,32 @@ module.exports = {
 
 ## API Routes
 
-The `stripe-products` module contains a custom API route (`'/api/v1/stripe-products/synchronize'`) triggered by the `Synchronize Products` utility operation. It is executed through the `'@apostrophecms/job'` module. Once the job is completed, it saves the difference between the existing and received data to the results object in the `aposJobs` collection document.
+#### `'/api/v1/stripe-products/synchronize'`:
+
+This API route is triggered by the `Synchronize Products` utility operation and handled via the `'@apostrophecms/job'` module. Upon execution, it compares the existing data with the received data and records the differences in the results object within the `aposJobs` collection document. Access to this endpoint is restricted to authenticated users with appropriate permissions.
+
+<br>
+
+#### `'/api/v1/stripe-products/product'`:
+
+Apostrophe provides a pre-configured REST endpoint to retrieve a list of all available products. Below is an example of how to use the Fetch API with error handling directly in the browser:
+
+```javascript
+try {
+  const response = await fetch('/api/v1/stripe-products/product');
+  if (!response.ok) {
+    throw new Error('Failed to fetch products');
+  }
+  const { results: products } = await response.json();
+
+  products.forEach(product => {
+    console.log('Product Name:', product.stripeProductObject.name);
+  });
+
+} catch (error) {
+  console.error('Error fetching products:', error);
+}
+```
 
 <br>
 
@@ -156,4 +181,5 @@ Once set up, run tests using `npm run tests` to validate any changes before depl
 ## TODOs (Limitations)
 
 - fix disappering `stripeProductObject` and `stripePriceObject` data when moved between `draft` and `published` modes and vice versa
+- optional product piece type REST API or configurable schema fields
 - two-way synchronization between ApostropheCMS and Stripe
