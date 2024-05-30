@@ -155,9 +155,7 @@ module.exports = {
             }
           }
 
-          if (req.user && (req.user.role === 'editor' || req.user.role === 'admin')) {
-
-            /* TODO req.user && (req.user._permissions || {}) */
+          if (req.user && self.apos.permission.can(req, 'create', 'stripe-products/product')) {
 
             let jobResolve, reporting;
             const jobPromise = new Promise((resolve, reject) => {

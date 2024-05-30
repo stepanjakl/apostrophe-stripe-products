@@ -178,8 +178,9 @@ Once set up, run tests using `npm run tests` to validate any changes before depl
 
 <br>
 
-## TODOs (Limitations)
+## TODOs (Improvements)
 
 - fix disappering `stripeProductObject` and `stripePriceObject` data when moved between `draft` and `published` modes and vice versa
 - optional product piece type REST API or configurable schema fields
+- automatic synchronization on product catalog changes with global schema field to enable
 - two-way synchronization between ApostropheCMS and Stripe

@@ -23,11 +23,15 @@ module.exports = {
   batchOperations: {
     remove: [ 'publish' ]
   },
+  icons: {
+    sync: 'Sync'
+  },
   utilityOperations(self) {
     return {
       add: {
         synchronizeProducts: {
           label: 'stripeProducts:synchronizeProducts',
+          icon: 'sync',
           canEdit: true,
           button: true,
           eventOptions: {
